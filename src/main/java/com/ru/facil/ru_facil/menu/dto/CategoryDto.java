@@ -1,0 +1,9 @@
+package com.ru.facil.ru_facil.menu.dto;
+
+import com.ru.facil.ru_facil.menu.domain.Category;
+
+public record CategoryDto(Long id, String name) {
+    public static CategoryDto of(Category c) {
+        return new CategoryDto(c.getId(), c.getName());
+    }
+}
