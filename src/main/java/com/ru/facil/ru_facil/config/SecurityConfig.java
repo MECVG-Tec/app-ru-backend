@@ -12,29 +12,47 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
 
+
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // ou configure conforme o front-end
+
+                .csrf(csrf -> csrf.disable())
+
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/register").permitAll()
+                        .requestMatchers(
+
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+
+                                "/auth/**",
+                                "/register"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
+
+
                 .formLogin(form -> form
-                        .loginProcessingUrl("/auth/login") // endpoint de login
-                        .defaultSuccessUrl("/clientes", true)
-                        .permitAll()
+                        .loginProcessingUrl("/auth/login") // Endpoint que processará o login (POST)
+                        .defaultSuccessUrl("/clientes", true) // URL de redirecionamento após sucesso
+                        .permitAll() // Permite que todos acessem a página de login
                 )
+
+
                 .logout(logout -> logout
-                        .logoutUrl("/auth/logout")
+                        .logoutUrl("/auth/logout") // Endpoint para logout
                         .logoutSuccessUrl("/auth/login?logout")
-                        .permitAll());
+                        .permitAll()
+                );
 
         return http.build();
     }
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 }
+
+
