@@ -1,7 +1,7 @@
-package com.ru.facil.ru_facil.menu.repo;
+package com.ru.facil.ru_facil.repositories;
 
-import com.ru.facil.ru_facil.menu.domain.DailyMenuEntry;
-import com.ru.facil.ru_facil.menu.domain.MealType;
+import com.ru.facil.ru_facil.entities.DailyMenuEntry;
+import com.ru.facil.ru_facil.enuns.MealType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;

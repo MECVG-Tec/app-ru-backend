@@ -1,4 +1,4 @@
-package com.ru.facil.ru_facil.menu.domain;
+package com.ru.facil.ru_facil.enuns;
 
 /** Superset de slots; alguns só se aplicam a almoço (SALADA_COZIDA) ou jantar (SOPA). */
 public enum SlotType {

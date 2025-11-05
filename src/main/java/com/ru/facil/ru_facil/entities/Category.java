@@ -1,4 +1,4 @@
-package com.ru.facil.ru_facil.menu.domain;
+package com.ru.facil.ru_facil.entities;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;

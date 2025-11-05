@@ -1,6 +1,6 @@
 package com.ru.facil.ru_facil.menu.dto;
 
-import com.ru.facil.ru_facil.menu.domain.MealType;
+import com.ru.facil.ru_facil.enuns.MealType;
 
 import java.time.LocalDate;
 import java.util.List;

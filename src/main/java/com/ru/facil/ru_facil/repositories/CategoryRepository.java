@@ -1,6 +1,6 @@
-package com.ru.facil.ru_facil.menu.repo;
+package com.ru.facil.ru_facil.repositories;
 
-import com.ru.facil.ru_facil.menu.domain.Category;
+import com.ru.facil.ru_facil.entities.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> { }

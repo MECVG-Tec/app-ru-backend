@@ -1,5 +1,7 @@
-package com.ru.facil.ru_facil.menu.domain;
+package com.ru.facil.ru_facil.entities;
 
+import com.ru.facil.ru_facil.enuns.MealType;
+import com.ru.facil.ru_facil.enuns.SlotType;
 import jakarta.persistence.*;
 import lombok.*;
 

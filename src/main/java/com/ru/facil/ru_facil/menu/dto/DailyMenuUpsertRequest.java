@@ -1,6 +1,6 @@
 package com.ru.facil.ru_facil.menu.dto;
 
-import com.ru.facil.ru_facil.menu.domain.SlotType;
+import com.ru.facil.ru_facil.enuns.SlotType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
