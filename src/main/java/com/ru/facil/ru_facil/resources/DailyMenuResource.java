@@ -40,20 +40,24 @@ public class DailyMenuResource {
             @RequestBody @Valid DailyMenuUpsertRequest body
     ) {
         var d = LocalDate.parse(date);
-        repo.deleteByDateAndMealType(d, meal); // limpa o do dia/refeição
 
-        // grava o novo conjunto
+        // 1) limpa todos os registros do dia/refeição
+        repo.deleteByDateAndMealType(d, meal);
+        repo.flush(); // garante que o DELETE vai ao banco antes dos INSERTs
+
+        // 2) grava o novo conjunto
         for (var it : body.items()) {
             var e = DailyMenuEntry.builder()
                     .date(d)
                     .mealType(meal)
-                    .slotType(it.slot())
+                    .slotType(it.slot()) // seu DTO já é SlotType
                     .title(it.title())
                     .notes(it.notes())
                     .build();
             repo.save(e);
         }
 
+        // 3) retorna o cardápio atualizado
         var entries = repo.findByDateAndMealTypeOrderBySlotType(d, meal)
                           .stream().map(DailySlotDto::of).toList();
         return new DailyMenuResponse(d, meal, entries);
