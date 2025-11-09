@@ -31,3 +31,15 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# dumps SQL
+dumps/**/*.sql
+dumps/*.sql
+
+# scripts versionados
+!scripts/*.ps1
+
+
+# keep DB snapshots
+!dumps/
+!dumps/*.sql
