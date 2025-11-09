@@ -8,19 +8,33 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.http.HttpMethod;
-
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 @Configuration
 public class SecurityConfig {
 
     @Bean
+    public UserDetailsService userDetailsService(PasswordEncoder encoder) {
+        UserDetails admin = User.builder()
+                .username("admin")
+                .password(encoder.encode("1234"))
+                .roles("ADMIN")
+                .build();
+        return new InMemoryUserDetailsManager(admin);
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Em dev estamos sem CSRF por simplicidade (mantém como estava)
+            // Dev: sem CSRF e com CORS básico
             .csrf(csrf -> csrf.disable())
+            .cors(Customizer.withDefaults())
 
             .authorizeHttpRequests(auth -> auth
-                // Rotas públicas (dev e docs)
+                // Público (docs/health/H2)
                 .requestMatchers(
                     "/health",
                     "/h2-console/**",
@@ -29,30 +43,37 @@ public class SecurityConfig {
                     "/swagger-ui.html",
                     "/auth/**",
                     "/register"
-                        ).permitAll()
-                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/menu/**").permitAll()
-    .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/menu/**").permitAll()
-    .anyRequest().authenticated()
+                ).permitAll()
+
+                // Pré-flight CORS
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // Cardápio
+                .requestMatchers(HttpMethod.GET,    "/api/v1/menu/**").permitAll()
+                .requestMatchers(HttpMethod.PUT,    "/api/v1/menu/**").authenticated()
+                .requestMatchers(HttpMethod.POST,   "/api/v1/menu/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/menu/**").authenticated()
+
+                // Demais rotas: login
+                .anyRequest().authenticated()
             )
 
-            // Necessário para o console do H2 abrir em <iframe>
+            // H2 em iframe
             .headers(h -> h.frameOptions(f -> f.disable()))
 
-            // Mantém o formLogin existente
+            // Login padrão + Basic (útil p/ Swagger e scripts)
             .formLogin(form -> form
-                .loginProcessingUrl("/auth/login")   // POST
+                .loginProcessingUrl("/auth/login")
                 .defaultSuccessUrl("/clientes", true)
                 .permitAll()
             )
+            .httpBasic(Customizer.withDefaults())
 
             .logout(logout -> logout
                 .logoutUrl("/auth/logout")
                 .logoutSuccessUrl("/auth/login?logout")
                 .permitAll()
-            )
-
-            // HTTP Basic opcional (útil em dev para testar rápido se precisar)
-            .httpBasic(Customizer.withDefaults());
+            );
 
         return http.build();
     }
