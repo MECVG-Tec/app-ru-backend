@@ -1,6 +1,5 @@
 package com.ru.facil.ru_facil.entities;
 
-
 import jakarta.persistence.*;
 
 import java.util.Objects;
@@ -8,23 +7,45 @@ import java.util.Objects;
 @Entity
 @Table(name = "tb_cliente")
 public class Cliente {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // to usando essa anotação para chave primaria se autoincrementar
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String nome;
+
+    @Column(unique = true)
     private String email;
+
     private String senha;
+
+    @Column(name = "eh_aluno")
     private Boolean ehAluno;
 
-    public Cliente(Long id, String nome, String email, String senha, Boolean ehAluno) {
+    /**
+     * Matrícula do aluno na UFRPE. Para visitantes pode ficar null.
+     */
+    private String matricula;
+
+    /**
+     * Indica se o aluno mora na residência/moradia estudantil.
+     * Usado para aplicar gratuidade nas fichas.
+     */
+    @Column(name = "morador_residencia")
+    private Boolean moradorResidencia;
+
+    public Cliente() {
+    }
+
+    public Cliente(Long id, String nome, String email, String senha,
+                   Boolean ehAluno, String matricula, Boolean moradorResidencia) {
         this.id = id;
         this.nome = nome;
         this.email = email;
         this.senha = senha;
         this.ehAluno = ehAluno;
-    }
-
-    public Cliente() {
+        this.matricula = matricula;
+        this.moradorResidencia = moradorResidencia;
     }
 
     public Long getId() {
@@ -67,6 +88,22 @@ public class Cliente {
         this.ehAluno = ehAluno;
     }
 
+    public String getMatricula() {
+        return matricula;
+    }
+
+    public void setMatricula(String matricula) {
+        this.matricula = matricula;
+    }
+
+    public Boolean getMoradorResidencia() {
+        return moradorResidencia;
+    }
+
+    public void setMoradorResidencia(Boolean moradorResidencia) {
+        this.moradorResidencia = moradorResidencia;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -85,8 +122,9 @@ public class Cliente {
                 "id=" + id +
                 ", nome='" + nome + '\'' +
                 ", email='" + email + '\'' +
-                ", senha='" + senha + '\'' +
                 ", ehAluno=" + ehAluno +
+                ", matricula='" + matricula + '\'' +
+                ", moradorResidencia=" + moradorResidencia +
                 '}';
     }
 }
