@@ -1,5 +1,7 @@
 package com.ru.facil.ru_facil.entities;
 
+import com.ru.facil.ru_facil.enuns.PaymentMethod;
+import com.ru.facil.ru_facil.enuns.PaymentStatus;
 import com.ru.facil.ru_facil.enuns.TicketPriceType;
 import jakarta.persistence.*;
 
@@ -33,6 +35,16 @@ public class CompraFicha {
 
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
+
+    // -------- Pagamento digital --------
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "forma_pagamento", nullable = false, length = 32)
+    private PaymentMethod formaPagamento;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_pagamento", nullable = false, length = 32)
+    private PaymentStatus statusPagamento = PaymentStatus.PENDENTE;
 
     // -------- QR Code / validação --------
 
@@ -102,6 +114,22 @@ public class CompraFicha {
 
     public void setCriadoEm(LocalDateTime criadoEm) {
         this.criadoEm = criadoEm;
+    }
+
+    public PaymentMethod getFormaPagamento() {
+        return formaPagamento;
+    }
+
+    public void setFormaPagamento(PaymentMethod formaPagamento) {
+        this.formaPagamento = formaPagamento;
+    }
+
+    public PaymentStatus getStatusPagamento() {
+        return statusPagamento;
+    }
+
+    public void setStatusPagamento(PaymentStatus statusPagamento) {
+        this.statusPagamento = statusPagamento;
     }
 
     public String getCodigoValidacao() {

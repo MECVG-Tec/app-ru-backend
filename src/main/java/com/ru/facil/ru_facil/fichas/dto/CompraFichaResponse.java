@@ -1,6 +1,8 @@
 package com.ru.facil.ru_facil.fichas.dto;
 
 import com.ru.facil.ru_facil.entities.CompraFicha;
+import com.ru.facil.ru_facil.enuns.PaymentMethod;
+import com.ru.facil.ru_facil.enuns.PaymentStatus;
 import com.ru.facil.ru_facil.enuns.TicketPriceType;
 
 import java.math.BigDecimal;
@@ -15,7 +17,9 @@ public record CompraFichaResponse(
         BigDecimal valorTotal,
         TicketPriceType priceType,
         LocalDateTime criadoEm,
-        String codigoValidacao
+        String codigoValidacao,
+        PaymentMethod formaPagamento,
+        PaymentStatus statusPagamento
 ) {
 
     public static CompraFichaResponse of(CompraFicha c) {
@@ -28,7 +32,9 @@ public record CompraFichaResponse(
                 c.getValorTotal(),
                 c.getPriceType(),
                 c.getCriadoEm(),
-                c.getCodigoValidacao()
+                c.getCodigoValidacao(),
+                c.getFormaPagamento(),
+                c.getStatusPagamento()
         );
     }
 }

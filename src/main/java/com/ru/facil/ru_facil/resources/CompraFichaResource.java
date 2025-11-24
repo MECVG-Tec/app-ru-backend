@@ -2,6 +2,8 @@ package com.ru.facil.ru_facil.resources;
 
 import com.ru.facil.ru_facil.entities.Cliente;
 import com.ru.facil.ru_facil.entities.CompraFicha;
+import com.ru.facil.ru_facil.enuns.PaymentMethod;
+import com.ru.facil.ru_facil.enuns.PaymentStatus;
 import com.ru.facil.ru_facil.enuns.TicketPriceType;
 import com.ru.facil.ru_facil.fichas.dto.CompraFichaRequest;
 import com.ru.facil.ru_facil.fichas.dto.CompraFichaResponse;
@@ -37,11 +39,12 @@ public class CompraFichaResource {
         this.qrCodeService = qrCodeService;
     }
 
-    @Operation(summary = "Realiza a compra de fichas informando o e-mail do cliente")
+    @Operation(summary = "Realiza a compra de fichas informando o e-mail do cliente e a forma de pagamento")
     @PostMapping("/compras")
     public ResponseEntity<CompraFichaResponse> comprarFichas(@Valid @RequestBody CompraFichaRequest request) {
 
         String email = request.email();
+        PaymentMethod formaPagamento = request.formaPagamento();
 
         Cliente cliente = clienteRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -86,6 +89,13 @@ public class CompraFichaResource {
         compra.setValorTotal(total);
         compra.setPriceType(priceType);
         compra.setCriadoEm(LocalDateTime.now());
+
+        // Pagamento digital (simulado: sempre aprovado)
+        compra.setFormaPagamento(formaPagamento);
+
+        // Se quisesse, aqui daria pra integrar com um gateway real (Stripe, Mercado Pago, etc.)
+        // e mudar o status conforme a resposta. Por enquanto, marcamos como PAGO.
+        compra.setStatusPagamento(PaymentStatus.PAGO);
 
         // Gera código único que vai dentro do QR Code
         compra.setCodigoValidacao(UUID.randomUUID().toString());
@@ -141,6 +151,14 @@ public class CompraFichaResource {
                         HttpStatus.NOT_FOUND,
                         "QR Code inválido ou não encontrado"
                 ));
+
+        // Garante que o pagamento foi concluído
+        if (compra.getStatusPagamento() != PaymentStatus.PAGO) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Pagamento ainda não confirmado para esta ficha."
+            );
+        }
 
         if (Boolean.TRUE.equals(compra.getUsada())) {
             throw new ResponseStatusException(
