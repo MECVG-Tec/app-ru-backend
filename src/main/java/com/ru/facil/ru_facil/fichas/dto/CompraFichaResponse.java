@@ -14,7 +14,8 @@ public record CompraFichaResponse(
         BigDecimal valorUnitario,
         BigDecimal valorTotal,
         TicketPriceType priceType,
-        LocalDateTime criadoEm
+        LocalDateTime criadoEm,
+        String codigoValidacao
 ) {
 
     public static CompraFichaResponse of(CompraFicha c) {
@@ -26,7 +27,8 @@ public record CompraFichaResponse(
                 c.getValorUnitario(),
                 c.getValorTotal(),
                 c.getPriceType(),
-                c.getCriadoEm()
+                c.getCriadoEm(),
+                c.getCodigoValidacao()
         );
     }
 }

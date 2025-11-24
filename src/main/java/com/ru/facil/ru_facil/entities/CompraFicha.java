@@ -2,18 +2,12 @@ package com.ru.facil.ru_facil.entities;
 
 import com.ru.facil.ru_facil.enuns.TicketPriceType;
 import jakarta.persistence.*;
-import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "tb_compra_ficha")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class CompraFicha {
 
     @Id
@@ -39,4 +33,98 @@ public class CompraFicha {
 
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
+
+    // -------- QR Code / validação --------
+
+    @Column(name = "codigo_validacao", nullable = false, unique = true, length = 64)
+    private String codigoValidacao;
+
+    @Column(name = "usada", nullable = false)
+    private Boolean usada = Boolean.FALSE;
+
+    @Column(name = "usada_em")
+    private LocalDateTime usadaEm;
+
+    public CompraFicha() {
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Cliente getCliente() {
+        return cliente;
+    }
+
+    public void setCliente(Cliente cliente) {
+        this.cliente = cliente;
+    }
+
+    public Integer getQuantidade() {
+        return quantidade;
+    }
+
+    public void setQuantidade(Integer quantidade) {
+        this.quantidade = quantidade;
+    }
+
+    public BigDecimal getValorUnitario() {
+        return valorUnitario;
+    }
+
+    public void setValorUnitario(BigDecimal valorUnitario) {
+        this.valorUnitario = valorUnitario;
+    }
+
+    public BigDecimal getValorTotal() {
+        return valorTotal;
+    }
+
+    public void setValorTotal(BigDecimal valorTotal) {
+        this.valorTotal = valorTotal;
+    }
+
+    public TicketPriceType getPriceType() {
+        return priceType;
+    }
+
+    public void setPriceType(TicketPriceType priceType) {
+        this.priceType = priceType;
+    }
+
+    public LocalDateTime getCriadoEm() {
+        return criadoEm;
+    }
+
+    public void setCriadoEm(LocalDateTime criadoEm) {
+        this.criadoEm = criadoEm;
+    }
+
+    public String getCodigoValidacao() {
+        return codigoValidacao;
+    }
+
+    public void setCodigoValidacao(String codigoValidacao) {
+        this.codigoValidacao = codigoValidacao;
+    }
+
+    public Boolean getUsada() {
+        return usada;
+    }
+
+    public void setUsada(Boolean usada) {
+        this.usada = usada;
+    }
+
+    public LocalDateTime getUsadaEm() {
+        return usadaEm;
+    }
+
+    public void setUsadaEm(LocalDateTime usadaEm) {
+        this.usadaEm = usadaEm;
+    }
 }

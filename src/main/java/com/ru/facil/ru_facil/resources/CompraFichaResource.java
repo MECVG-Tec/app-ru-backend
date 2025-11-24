@@ -5,11 +5,13 @@ import com.ru.facil.ru_facil.entities.CompraFicha;
 import com.ru.facil.ru_facil.enuns.TicketPriceType;
 import com.ru.facil.ru_facil.fichas.dto.CompraFichaRequest;
 import com.ru.facil.ru_facil.fichas.dto.CompraFichaResponse;
+import com.ru.facil.ru_facil.qrcode.QrCodeService;
 import com.ru.facil.ru_facil.repositories.ClienteRepository;
 import com.ru.facil.ru_facil.repositories.CompraFichaRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -17,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/fichas")
@@ -24,11 +27,14 @@ public class CompraFichaResource {
 
     private final ClienteRepository clienteRepository;
     private final CompraFichaRepository compraFichaRepository;
+    private final QrCodeService qrCodeService;
 
     public CompraFichaResource(ClienteRepository clienteRepository,
-                               CompraFichaRepository compraFichaRepository) {
+                               CompraFichaRepository compraFichaRepository,
+                               QrCodeService qrCodeService) {
         this.clienteRepository = clienteRepository;
         this.compraFichaRepository = compraFichaRepository;
+        this.qrCodeService = qrCodeService;
     }
 
     @Operation(summary = "Realiza a compra de fichas informando o e-mail do cliente")
@@ -51,7 +57,7 @@ public class CompraFichaResource {
         boolean aluno = Boolean.TRUE.equals(cliente.getEhAluno());
         boolean moradorResidencia = Boolean.TRUE.equals(cliente.getMoradorResidencia());
 
-        // Se for aluno, exige matrícula preenchida
+        // Se for aluno, exige matrícula
         if (aluno && (cliente.getMatricula() == null || cliente.getMatricula().isBlank())) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Aluno precisa ter matrícula cadastrada para comprar fichas.");
@@ -81,6 +87,11 @@ public class CompraFichaResource {
         compra.setPriceType(priceType);
         compra.setCriadoEm(LocalDateTime.now());
 
+        // Gera código único que vai dentro do QR Code
+        compra.setCodigoValidacao(UUID.randomUUID().toString());
+        compra.setUsada(Boolean.FALSE);
+        compra.setUsadaEm(null);
+
         compra = compraFichaRepository.save(compra);
 
         return ResponseEntity
@@ -102,5 +113,46 @@ public class CompraFichaResource {
                 .stream()
                 .map(CompraFichaResponse::of)
                 .toList();
+    }
+
+    @Operation(summary = "Retorna o QR Code (PNG) da compra de ficha")
+    @GetMapping(value = "/compras/{id}/qrcode", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> getQrCode(@PathVariable Long id) {
+        CompraFicha compra = compraFichaRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Compra não encontrada"));
+
+        // O conteúdo do QR é só o código de validação (token)
+        String payload = compra.getCodigoValidacao();
+
+        byte[] image = qrCodeService.generateQrCode(payload, 300, 300);
+
+        return ResponseEntity
+                .ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .body(image);
+    }
+
+    @Operation(summary = "Valida um QR Code de ficha dentro do restaurante")
+    @PostMapping("/compras/validar")
+    public ResponseEntity<CompraFichaResponse> validarQrCode(@RequestParam("codigo") String codigo) {
+
+        CompraFicha compra = compraFichaRepository.findByCodigoValidacao(codigo)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "QR Code inválido ou não encontrado"
+                ));
+
+        if (Boolean.TRUE.equals(compra.getUsada())) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "QR Code já utilizado em: " + compra.getUsadaEm()
+            );
+        }
+
+        compra.setUsada(Boolean.TRUE);
+        compra.setUsadaEm(LocalDateTime.now());
+        compra = compraFichaRepository.save(compra);
+
+        return ResponseEntity.ok(CompraFichaResponse.of(compra));
     }
 }
