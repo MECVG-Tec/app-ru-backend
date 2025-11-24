@@ -7,6 +7,7 @@ import com.ru.facil.ru_facil.enuns.PaymentStatus;
 import com.ru.facil.ru_facil.enuns.TicketPriceType;
 import com.ru.facil.ru_facil.fichas.dto.CompraFichaRequest;
 import com.ru.facil.ru_facil.fichas.dto.CompraFichaResponse;
+import com.ru.facil.ru_facil.pontuacao.PontuacaoService;
 import com.ru.facil.ru_facil.qrcode.QrCodeService;
 import com.ru.facil.ru_facil.repositories.ClienteRepository;
 import com.ru.facil.ru_facil.repositories.CompraFichaRepository;
@@ -30,13 +31,16 @@ public class CompraFichaResource {
     private final ClienteRepository clienteRepository;
     private final CompraFichaRepository compraFichaRepository;
     private final QrCodeService qrCodeService;
+    private final PontuacaoService pontuacaoService;
 
     public CompraFichaResource(ClienteRepository clienteRepository,
                                CompraFichaRepository compraFichaRepository,
-                               QrCodeService qrCodeService) {
+                               QrCodeService qrCodeService,
+                               PontuacaoService pontuacaoService) {
         this.clienteRepository = clienteRepository;
         this.compraFichaRepository = compraFichaRepository;
         this.qrCodeService = qrCodeService;
+        this.pontuacaoService = pontuacaoService;
     }
 
     @Operation(summary = "Realiza a compra de fichas informando o e-mail do cliente e a forma de pagamento")
@@ -60,7 +64,6 @@ public class CompraFichaResource {
         boolean aluno = Boolean.TRUE.equals(cliente.getEhAluno());
         boolean moradorResidencia = Boolean.TRUE.equals(cliente.getMoradorResidencia());
 
-        // Se for aluno, exige matrícula
         if (aluno && (cliente.getMatricula() == null || cliente.getMatricula().isBlank())) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Aluno precisa ter matrícula cadastrada para comprar fichas.");
@@ -92,17 +95,17 @@ public class CompraFichaResource {
 
         // Pagamento digital (simulado: sempre aprovado)
         compra.setFormaPagamento(formaPagamento);
-
-        // Se quisesse, aqui daria pra integrar com um gateway real (Stripe, Mercado Pago, etc.)
-        // e mudar o status conforme a resposta. Por enquanto, marcamos como PAGO.
         compra.setStatusPagamento(PaymentStatus.PAGO);
 
-        // Gera código único que vai dentro do QR Code
+        // Gera código único para o QR de entrada no RU
         compra.setCodigoValidacao(UUID.randomUUID().toString());
         compra.setUsada(Boolean.FALSE);
         compra.setUsadaEm(null);
 
         compra = compraFichaRepository.save(compra);
+
+        // >>> Gamificação: registra pontos pela compra <<<
+        pontuacaoService.registrarCompra(cliente, quantidade, compra.getId());
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -131,7 +134,6 @@ public class CompraFichaResource {
         CompraFicha compra = compraFichaRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Compra não encontrada"));
 
-        // O conteúdo do QR é só o código de validação (token)
         String payload = compra.getCodigoValidacao();
 
         byte[] image = qrCodeService.generateQrCode(payload, 300, 300);
@@ -152,7 +154,6 @@ public class CompraFichaResource {
                         "QR Code inválido ou não encontrado"
                 ));
 
-        // Garante que o pagamento foi concluído
         if (compra.getStatusPagamento() != PaymentStatus.PAGO) {
             throw new ResponseStatusException(
                     HttpStatus.UNPROCESSABLE_ENTITY,

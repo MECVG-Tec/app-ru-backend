@@ -1,9 +1,12 @@
 package com.ru.facil.ru_facil.resources;
 
-import com.ru.facil.ru_facil.enuns.MealType;
+import com.ru.facil.ru_facil.entities.Cliente;
 import com.ru.facil.ru_facil.entities.MealFeedback;
+import com.ru.facil.ru_facil.enuns.MealType;
 import com.ru.facil.ru_facil.feedback.dto.MealFeedbackRequest;
 import com.ru.facil.ru_facil.feedback.dto.MealFeedbackResponse;
+import com.ru.facil.ru_facil.pontuacao.PontuacaoService;
+import com.ru.facil.ru_facil.repositories.ClienteRepository;
 import com.ru.facil.ru_facil.repositories.MealFeedbackRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -21,9 +24,15 @@ import java.util.List;
 public class MealFeedbackResource {
 
     private final MealFeedbackRepository repo;
+    private final ClienteRepository clienteRepository;
+    private final PontuacaoService pontuacaoService;
 
-    public MealFeedbackResource(MealFeedbackRepository repo) {
+    public MealFeedbackResource(MealFeedbackRepository repo,
+                                ClienteRepository clienteRepository,
+                                PontuacaoService pontuacaoService) {
         this.repo = repo;
+        this.clienteRepository = clienteRepository;
+        this.pontuacaoService = pontuacaoService;
     }
 
     @Operation(summary = "Envia avaliação de uma refeição (almoço/jantar)")
@@ -39,11 +48,16 @@ public class MealFeedbackResource {
         entidade.setRating(request.rating());
         entidade.setComentario(request.comentario());
 
-        entidade = repo.save(entidade);
+        // salva em uma variável separada, efetivamente final
+        MealFeedback saved = repo.save(entidade);
+
+        // Gamificação: se o e-mail pertence a um cliente, adiciona pontos
+        clienteRepository.findByEmail(request.email())
+                .ifPresent(cliente -> pontuacaoService.registrarAvaliacao(cliente, saved.getId()));
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(MealFeedbackResponse.of(entidade));
+                .body(MealFeedbackResponse.of(saved));
     }
 
     @Operation(summary = "Lista avaliações de refeições (por e-mail ou por data+refeição)")
