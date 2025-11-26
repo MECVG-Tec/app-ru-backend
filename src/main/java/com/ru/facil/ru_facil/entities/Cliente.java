@@ -1,5 +1,6 @@
 package com.ru.facil.ru_facil.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.util.Objects;
@@ -17,6 +18,7 @@ public class Cliente {
     @Column(unique = true)
     private String email;
 
+    @JsonIgnore
     private String senha;
 
     @Column(name = "eh_aluno")
@@ -33,6 +35,24 @@ public class Cliente {
      */
     @Column(name = "morador_residencia")
     private Boolean moradorResidencia;
+
+    /**
+     * Preferência de alto contraste para interfaces acessíveis.
+     */
+    @Column(name = "prefere_alto_contraste")
+    private Boolean prefereAltoContraste;
+
+    /**
+     * Preferência por textos mais simples nas mensagens.
+     */
+    @Column(name = "prefere_linguagem_simples")
+    private Boolean prefereLinguagemSimples;
+
+    /**
+     * Preferência por fontes maiores na interface.
+     */
+    @Column(name = "prefere_fonte_grande")
+    private Boolean prefereFonteGrande;
 
     public Cliente() {
     }
@@ -104,6 +124,30 @@ public class Cliente {
         this.moradorResidencia = moradorResidencia;
     }
 
+    public Boolean getPrefereAltoContraste() {
+        return prefereAltoContraste;
+    }
+
+    public void setPrefereAltoContraste(Boolean prefereAltoContraste) {
+        this.prefereAltoContraste = prefereAltoContraste;
+    }
+
+    public Boolean getPrefereLinguagemSimples() {
+        return prefereLinguagemSimples;
+    }
+
+    public void setPrefereLinguagemSimples(Boolean prefereLinguagemSimples) {
+        this.prefereLinguagemSimples = prefereLinguagemSimples;
+    }
+
+    public Boolean getPrefereFonteGrande() {
+        return prefereFonteGrande;
+    }
+
+    public void setPrefereFonteGrande(Boolean prefereFonteGrande) {
+        this.prefereFonteGrande = prefereFonteGrande;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -125,6 +169,9 @@ public class Cliente {
                 ", ehAluno=" + ehAluno +
                 ", matricula='" + matricula + '\'' +
                 ", moradorResidencia=" + moradorResidencia +
+                ", prefereAltoContraste=" + prefereAltoContraste +
+                ", prefereLinguagemSimples=" + prefereLinguagemSimples +
+                ", prefereFonteGrande=" + prefereFonteGrande +
                 '}';
     }
 }
