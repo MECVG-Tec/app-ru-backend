@@ -1,6 +1,6 @@
 package com.ru.facil.ru_facil.entities;
 
-
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 import java.util.Objects;
@@ -8,23 +8,65 @@ import java.util.Objects;
 @Entity
 @Table(name = "tb_cliente")
 public class Cliente {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // to usando essa anotação para chave primaria se autoincrementar
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String nome;
+
+    @Column(unique = true)
     private String email;
+
+    // write-only: aceita no request, não devolve no response
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String senha;
+
+    @Column(name = "eh_aluno")
     private Boolean ehAluno;
 
-    public Cliente(Long id, String nome, String email, String senha, Boolean ehAluno) {
+    /**
+     * Matrícula do aluno na UFRPE. Para visitantes pode ficar null.
+     */
+    private String matricula;
+
+    /**
+     * Indica se o aluno mora na residência/moradia estudantil.
+     * Usado para aplicar gratuidade nas fichas.
+     */
+    @Column(name = "morador_residencia")
+    private Boolean moradorResidencia;
+
+    /**
+     * Preferência de alto contraste para interfaces acessíveis.
+     */
+    @Column(name = "prefere_alto_contraste")
+    private Boolean prefereAltoContraste;
+
+    /**
+     * Preferência por textos mais simples nas mensagens.
+     */
+    @Column(name = "prefere_linguagem_simples")
+    private Boolean prefereLinguagemSimples;
+
+    /**
+     * Preferência por fontes maiores na interface.
+     */
+    @Column(name = "prefere_fonte_grande")
+    private Boolean prefereFonteGrande;
+
+    public Cliente() {
+    }
+
+    public Cliente(Long id, String nome, String email, String senha,
+                   Boolean ehAluno, String matricula, Boolean moradorResidencia) {
         this.id = id;
         this.nome = nome;
         this.email = email;
         this.senha = senha;
         this.ehAluno = ehAluno;
-    }
-
-    public Cliente() {
+        this.matricula = matricula;
+        this.moradorResidencia = moradorResidencia;
     }
 
     public Long getId() {
@@ -67,6 +109,46 @@ public class Cliente {
         this.ehAluno = ehAluno;
     }
 
+    public String getMatricula() {
+        return matricula;
+    }
+
+    public void setMatricula(String matricula) {
+        this.matricula = matricula;
+    }
+
+    public Boolean getMoradorResidencia() {
+        return moradorResidencia;
+    }
+
+    public void setMoradorResidencia(Boolean moradorResidencia) {
+        this.moradorResidencia = moradorResidencia;
+    }
+
+    public Boolean getPrefereAltoContraste() {
+        return prefereAltoContraste;
+    }
+
+    public void setPrefereAltoContraste(Boolean prefereAltoContraste) {
+        this.prefereAltoContraste = prefereAltoContraste;
+    }
+
+    public Boolean getPrefereLinguagemSimples() {
+        return prefereLinguagemSimples;
+    }
+
+    public void setPrefereLinguagemSimples(Boolean prefereLinguagemSimples) {
+        this.prefereLinguagemSimples = prefereLinguagemSimples;
+    }
+
+    public Boolean getPrefereFonteGrande() {
+        return prefereFonteGrande;
+    }
+
+    public void setPrefereFonteGrande(Boolean prefereFonteGrande) {
+        this.prefereFonteGrande = prefereFonteGrande;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -85,8 +167,12 @@ public class Cliente {
                 "id=" + id +
                 ", nome='" + nome + '\'' +
                 ", email='" + email + '\'' +
-                ", senha='" + senha + '\'' +
                 ", ehAluno=" + ehAluno +
+                ", matricula='" + matricula + '\'' +
+                ", moradorResidencia=" + moradorResidencia +
+                ", prefereAltoContraste=" + prefereAltoContraste +
+                ", prefereLinguagemSimples=" + prefereLinguagemSimples +
+                ", prefereFonteGrande=" + prefereFonteGrande +
                 '}';
     }
 }
