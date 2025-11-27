@@ -15,6 +15,8 @@ import com.ru.facil.ru_facil.payments.PagBankClient;
 import com.ru.facil.ru_facil.payments.dto.CardPaymentResult;
 import com.ru.facil.ru_facil.payments.dto.PagBankPixResponse;
 import com.ru.facil.ru_facil.payments.dto.PagBankWebhookSimuladoRequest;
+import com.ru.facil.ru_facil.fichas.dto.PagamentoPorMetodoResumo;
+import com.ru.facil.ru_facil.fichas.dto.ResumoComprasResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/fichas")
@@ -185,17 +189,50 @@ public class CompraFichaResource {
     @GetMapping("/compras")
     public List<CompraFichaResponse> listarComprasPorEmail(@RequestParam String email) {
 
+            Cliente cliente = clienteRepository.findByEmail(email)
+                            .orElseThrow(() -> new ResponseStatusException(
+                                            HttpStatus.NOT_FOUND,
+                                            "Cliente não encontrado para o e-mail: " + email));
+
+            return compraFichaRepository.findByClienteIdOrderByCriadoEmDesc(cliente.getId())
+                            .stream()
+                            .map(CompraFichaResponse::of)
+                            .toList();
+    }
+    
+        @Operation(summary = "Resumo das compras de fichas por forma de pagamento (para gráficos)")
+    @GetMapping("/compras/resumo")
+    public ResumoComprasResponse resumoComprasPorMetodo(@RequestParam String email) {
+
         Cliente cliente = clienteRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Cliente não encontrado para o e-mail: " + email
                 ));
 
-        return compraFichaRepository.findByClienteIdOrderByCriadoEmDesc(cliente.getId())
-                .stream()
-                .map(CompraFichaResponse::of)
+        List<CompraFicha> compras = compraFichaRepository
+                .findByClienteIdOrderByCriadoEmDesc(cliente.getId());
+
+        Map<PaymentMethod, List<CompraFicha>> agrupadoPorMetodo = compras.stream()
+                .collect(Collectors.groupingBy(CompraFicha::getFormaPagamento));
+
+        List<PagamentoPorMetodoResumo> porMetodo = agrupadoPorMetodo.entrySet().stream()
+                .map(entry -> {
+                    PaymentMethod metodo = entry.getKey();
+                    List<CompraFicha> lista = entry.getValue();
+
+                    long qtd = lista.size();
+                    BigDecimal total = lista.stream()
+                            .map(CompraFicha::getValorTotal)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    return new PagamentoPorMetodoResumo(metodo, qtd, total);
+                })
                 .toList();
+
+        return new ResumoComprasResponse(cliente.getEmail(), porMetodo);
     }
+
 
     @Operation(summary = "Retorna o QR Code (PNG) da compra de ficha")
     @GetMapping(value = "/compras/{id}/qrcode", produces = MediaType.IMAGE_PNG_VALUE)

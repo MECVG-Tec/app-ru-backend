@@ -7,6 +7,7 @@ import com.ru.facil.ru_facil.enuns.TicketPriceType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public record CompraFichaResponse(
         Long id,
@@ -25,8 +26,13 @@ public record CompraFichaResponse(
         String gatewayProvider,
         String gatewayOrderId,
         String cardBrand,
-        String cardLast4
+        String cardLast4,
+        String dataCompraFormatada,
+        String formaPagamentoDescricao
 ) {
+
+    private static final DateTimeFormatter DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public static CompraFichaResponse of(CompraFicha c) {
 
@@ -36,6 +42,24 @@ public record CompraFichaResponse(
         if (c.getFormaPagamento() == PaymentMethod.PIX) {
             qrText = c.getGatewayQrCodeText();
             qrUrl = c.getGatewayQrCodeImageUrl();
+        }
+
+        String dataFormatada = null;
+        if (c.getCriadoEm() != null) {
+            dataFormatada = c.getCriadoEm()
+                    .toLocalDate()
+                    .format(DATE_FORMATTER);
+        }
+
+        String formaDesc = null;
+        if (c.getFormaPagamento() != null) {
+            formaDesc = switch (c.getFormaPagamento()) {
+                case PIX -> "Pix";
+                case CARTAO_CREDITO -> "Cartão de crédito";
+                case CARTAO_DEBITO -> "Cartão de débito";
+                case CARTEIRA_DIGITAL -> "Carteira digital";
+                default -> c.getFormaPagamento().name();
+            };
         }
 
         return new CompraFichaResponse(
@@ -55,7 +79,9 @@ public record CompraFichaResponse(
                 c.getGatewayProvider(),
                 c.getGatewayOrderId(),
                 c.getCardBrand(),
-                c.getCardLast4()
+                c.getCardLast4(),
+                dataFormatada,
+                formaDesc
         );
     }
 }
