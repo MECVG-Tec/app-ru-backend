@@ -1,6 +1,6 @@
 package com.ru.facil.ru_facil.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 import java.util.Objects;
@@ -18,7 +18,8 @@ public class Cliente {
     @Column(unique = true)
     private String email;
 
-    @JsonIgnore
+    // write-only: aceita no request, não devolve no response
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String senha;
 
     @Column(name = "eh_aluno")

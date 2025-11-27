@@ -11,4 +11,7 @@ public interface CompraFichaRepository extends JpaRepository<CompraFicha, Long> 
     List<CompraFicha> findByClienteIdOrderByCriadoEmDesc(Long clienteId);
 
     Optional<CompraFicha> findByCodigoValidacao(String codigoValidacao);
+
+    Optional<CompraFicha> findByGatewayOrderId(String gatewayOrderId);
+
 }

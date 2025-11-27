@@ -46,7 +46,22 @@ public class CompraFicha {
     @Column(name = "status_pagamento", nullable = false, length = 32)
     private PaymentStatus statusPagamento = PaymentStatus.PENDENTE;
 
-    // -------- QR Code / validação --------
+    // -------- Dados do gateway de pagamento (PagBank / Pix) --------
+
+    @Column(name = "gateway_provider", length = 32)
+    private String gatewayProvider;
+
+    @Column(name = "gateway_order_id", length = 64)
+    private String gatewayOrderId;
+
+    @Column(name = "gateway_qrcode_text", columnDefinition = "TEXT")
+    private String gatewayQrCodeText;
+
+    @Column(name = "gateway_qrcode_image_url")
+    private String gatewayQrCodeImageUrl;
+
+
+    // -------- QR Code / valid
 
     @Column(name = "codigo_validacao", nullable = false, unique = true, length = 64)
     private String codigoValidacao;
@@ -132,6 +147,47 @@ public class CompraFicha {
         this.statusPagamento = statusPagamento;
     }
 
+    public String getGatewayProvider() {
+        return gatewayProvider;
+    }
+
+    public void setGatewayProvider(String gatewayProvider) {
+        this.gatewayProvider = gatewayProvider;
+    }
+
+    public String getGatewayOrderId() {
+        return gatewayOrderId;
+    }
+
+    public void setGatewayOrderId(String gatewayOrderId) {
+        this.gatewayOrderId = gatewayOrderId;
+    }
+
+    public String getGatewayQrCodeText() {
+        return gatewayQrCodeText;
+    }
+
+    public void setGatewayQrCodeText(String gatewayQrCodeText) {
+        this.gatewayQrCodeText = gatewayQrCodeText;
+    }
+
+    public String getGatewayQrCodeImageUrl() {
+        return gatewayQrCodeImageUrl;
+    }
+
+    public void setGatewayQrCodeImageUrl(String gatewayQrCodeImageUrl) {
+        this.gatewayQrCodeImageUrl = gatewayQrCodeImageUrl;
+    }
+
+        // -------- Metadados de cartão (não sensíveis) --------
+
+    @Column(name = "card_brand", length = 32)
+    private String cardBrand;
+
+    @Column(name = "card_last4", length = 4)
+    private String cardLast4;
+
+
     public String getCodigoValidacao() {
         return codigoValidacao;
     }
@@ -155,4 +211,21 @@ public class CompraFicha {
     public void setUsadaEm(LocalDateTime usadaEm) {
         this.usadaEm = usadaEm;
     }
+
+        public String getCardBrand() {
+        return cardBrand;
+    }
+
+    public void setCardBrand(String cardBrand) {
+        this.cardBrand = cardBrand;
+    }
+
+    public String getCardLast4() {
+        return cardLast4;
+    }
+
+    public void setCardLast4(String cardLast4) {
+        this.cardLast4 = cardLast4;
+    }
+
 }

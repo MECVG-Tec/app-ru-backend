@@ -19,10 +19,25 @@ public record CompraFichaResponse(
         LocalDateTime criadoEm,
         String codigoValidacao,
         PaymentMethod formaPagamento,
-        PaymentStatus statusPagamento
+        PaymentStatus statusPagamento,
+        String pixQrCodeText,
+        String pixQrCodeImageUrl,
+        String gatewayProvider,
+        String gatewayOrderId,
+        String cardBrand,
+        String cardLast4
 ) {
 
     public static CompraFichaResponse of(CompraFicha c) {
+
+        String qrText = null;
+        String qrUrl = null;
+
+        if (c.getFormaPagamento() == PaymentMethod.PIX) {
+            qrText = c.getGatewayQrCodeText();
+            qrUrl = c.getGatewayQrCodeImageUrl();
+        }
+
         return new CompraFichaResponse(
                 c.getId(),
                 c.getCliente().getId(),
@@ -34,7 +49,13 @@ public record CompraFichaResponse(
                 c.getCriadoEm(),
                 c.getCodigoValidacao(),
                 c.getFormaPagamento(),
-                c.getStatusPagamento()
+                c.getStatusPagamento(),
+                qrText,
+                qrUrl,
+                c.getGatewayProvider(),
+                c.getGatewayOrderId(),
+                c.getCardBrand(),
+                c.getCardLast4()
         );
     }
 }
