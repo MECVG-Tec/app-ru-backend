@@ -3,6 +3,7 @@ package com.ru.facil.ru_facil.entities;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
+import java.time.Instant;
 import java.util.Objects;
 
 @Entity
@@ -54,6 +55,18 @@ public class Cliente {
      */
     @Column(name = "prefere_fonte_grande")
     private Boolean prefereFonteGrande;
+
+    /**
+     * Token para redefinição de senha.
+     */
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    /**
+     * Data/hora de expiração do token de redefinição.
+     */
+    @Column(name = "reset_token_expira_em")
+    private Instant resetTokenExpiraEm;
 
     public Cliente() {
     }
@@ -149,6 +162,22 @@ public class Cliente {
         this.prefereFonteGrande = prefereFonteGrande;
     }
 
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
+    }
+
+    public Instant getResetTokenExpiraEm() {
+        return resetTokenExpiraEm;
+    }
+
+    public void setResetTokenExpiraEm(Instant resetTokenExpiraEm) {
+        this.resetTokenExpiraEm = resetTokenExpiraEm;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -173,6 +202,8 @@ public class Cliente {
                 ", prefereAltoContraste=" + prefereAltoContraste +
                 ", prefereLinguagemSimples=" + prefereLinguagemSimples +
                 ", prefereFonteGrande=" + prefereFonteGrande +
+                ", resetToken='" + resetToken + '\'' +
+                ", resetTokenExpiraEm=" + resetTokenExpiraEm +
                 '}';
     }
 }
