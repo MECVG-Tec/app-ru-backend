@@ -3,11 +3,15 @@ package com.ru.facil.ru_facil.resources;
 import com.ru.facil.ru_facil.email.EmailService;
 import com.ru.facil.ru_facil.entities.Cliente;
 import com.ru.facil.ru_facil.repositories.ClienteRepository;
+import com.ru.facil.ru_facil.services.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.integration.IntegrationProperties.RSocket.Client;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,6 +35,23 @@ public class AuthResource {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private TokenService tokenService;
+
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
+    public record LoginRequest(String email, String senha) {}
+
+    public record LoginResponse(String token, Cliente cliente) {
+        public LoginResponse {
+            if (cliente != null) {
+                cliente.setSenha(null);
+            }
+        }
+    }
+    // -----------------------------------------------
+
     @Operation(description = "Registra um novo usuário")
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody Cliente cliente) {
@@ -40,6 +61,7 @@ public class AuthResource {
             logger.warn("[AUTH] Registro bloqueado: email já cadastrado={}", cliente.getEmail());
             return ResponseEntity.badRequest().body("E-mail já cadastrado");
         }
+
         cliente.setSenha(passwordEncoder.encode(cliente.getSenha()));
         clienteRepository.save(cliente);
 
@@ -47,12 +69,28 @@ public class AuthResource {
         return ResponseEntity.ok("Usuário registrado com sucesso!");
     }
 
-    @Operation(description = "Efetua o login do usuário")
+    @Operation(description = "Efetua o login e retorna o Token JWT")
     @PostMapping("/login")
-    public ResponseEntity<String> login() {
-        // Autenticação em si é tratada pelo Spring Security (filtro), aqui só resposta simbólica
-        logger.info("[AUTH] Login efetuado com sucesso (via Spring Security)");
-        return ResponseEntity.ok("Login efetuado com sucesso!");
+    public ResponseEntity login(@RequestBody LoginRequest data) {
+        logger.info("[AUTH] Tentativa de login para {}", data.email());
+
+        try {
+            var usernamePassword = new UsernamePasswordAuthenticationToken(data.email(), data.senha());
+
+            var auth = this.authenticationManager.authenticate(usernamePassword);
+
+            var cliente = clienteRepository.findByEmail(data.email())
+                    .orElseThrow(() -> new RuntimeException("Cliente não encontrado após autenticação (erro inesperado)"));
+
+            var token = tokenService.generateToken(cliente);
+
+            logger.info("[AUTH] Login sucesso. Token gerado para {}", data.email());
+            return ResponseEntity.ok(new LoginResponse(token, cliente));
+
+        } catch (Exception e) {
+            logger.error("[AUTH] Erro no login: {}", e.getMessage());
+            return ResponseEntity.status(401).body("Email ou senha inválidos");
+        }
     }
 
     @Operation(description = "Solicita redefinição de senha (envia e-mail com token)")
@@ -62,36 +100,26 @@ public class AuthResource {
 
         Optional<Cliente> opt = clienteRepository.findByEmail(email);
         if (opt.isEmpty()) {
-            logger.warn("[AUTH] Pedido de redefinição para email não cadastrado={}", email);
             return ResponseEntity.ok("Se o e-mail existir, enviaremos instruções para redefinir a senha.");
         }
 
         Cliente cliente = opt.get();
         Instant agora = Instant.now();
 
-        // Se já existe token ainda válido, não gera outro, apenas reenvia
         if (cliente.getResetToken() != null &&
                 cliente.getResetTokenExpiraEm() != null &&
                 cliente.getResetTokenExpiraEm().isAfter(agora)) {
-
-            logger.info("[AUTH] Já existe token válido para clienteId={}, expiraEm={}",
-                    cliente.getId(), cliente.getResetTokenExpiraEm());
-
+            
             emailService.enviarEmailRedefinicaoSenha(cliente, cliente.getResetToken());
-
             return ResponseEntity.ok("Se o e-mail existir, enviaremos instruções para redefinir a senha.");
         }
 
-        // Caso não exista token ou já esteja expirado, gera um novo
         String token = UUID.randomUUID().toString();
         Instant expiraEm = agora.plus(30, ChronoUnit.MINUTES);
 
         cliente.setResetToken(token);
         cliente.setResetTokenExpiraEm(expiraEm);
         clienteRepository.save(cliente);
-
-        logger.info("[AUTH] Novo token de redefinição gerado para clienteId={}, expiraEm={}",
-                cliente.getId(), expiraEm);
 
         emailService.enviarEmailRedefinicaoSenha(cliente, token);
 
@@ -105,17 +133,16 @@ public class AuthResource {
         logger.info("[AUTH] Tentativa de redefinir senha com token={}", token);
 
         Optional<Cliente> opt = clienteRepository.findByResetToken(token);
+        
         if (opt.isEmpty()) {
-            logger.warn("[AUTH] Token inválido na redefinição de senha");
-            return ResponseEntity.badRequest().body("Token inválido ou expirado.");
+            return ResponseEntity.badRequest().body("Token inválido.");
         }
 
         Cliente cliente = opt.get();
 
         if (cliente.getResetTokenExpiraEm() == null ||
                 cliente.getResetTokenExpiraEm().isBefore(Instant.now())) {
-            logger.warn("[AUTH] Token expirado para clienteId={}", cliente.getId());
-            return ResponseEntity.badRequest().body("Token inválido ou expirado.");
+            return ResponseEntity.badRequest().body("Token expirado.");
         }
 
         cliente.setSenha(passwordEncoder.encode(novaSenha));

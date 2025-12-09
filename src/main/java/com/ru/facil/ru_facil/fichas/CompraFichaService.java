@@ -70,10 +70,14 @@ public class CompraFichaService {
                         "Cliente não encontrado para o e-mail: " + email
                 ));
 
-        int quantidade = request.quantidade();
-        if (quantidade <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantidade deve ser maior que zero");
+        int qtdAlmoco = request.quantidadeAlmoco() != null ? request.quantidadeAlmoco() : 0;
+        int qtdJantar = request.quantidadeJantar() != null ? request.quantidadeJantar() : 0;
+        int quantidadeTotal = qtdAlmoco + qtdJantar;
+
+        if (quantidadeTotal <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantidade total deve ser maior que zero (selecione almoço ou jantar)");
         }
+        
 
         boolean aluno = Boolean.TRUE.equals(cliente.getEhAluno());
         boolean moradorResidencia = Boolean.TRUE.equals(cliente.getMoradorResidencia());
@@ -98,11 +102,15 @@ public class CompraFichaService {
             unitPrice = new BigDecimal("20.00");
         }
 
-        BigDecimal total = unitPrice.multiply(BigDecimal.valueOf(quantidade));
+        BigDecimal total = unitPrice.multiply(BigDecimal.valueOf(quantidadeTotal));
 
         CompraFicha compra = new CompraFicha();
         compra.setCliente(cliente);
-        compra.setQuantidade(quantidade);
+        
+        compra.setQuantidadeAlmoco(qtdAlmoco);
+        compra.setQuantidadeJantar(qtdJantar);
+        compra.setQuantidade(quantidadeTotal);
+        
         compra.setValorUnitario(unitPrice);
         compra.setValorTotal(total);
         compra.setPriceType(priceType);
@@ -111,10 +119,7 @@ public class CompraFichaService {
 
         boolean enviarEmailAposSalvar = false;
 
-        // --- Decisão de fluxo por forma de pagamento ---
         if (formaPagamento == PaymentMethod.PIX) {
-
-            // === Fluxo Pix + PagBank (pedido pendente) ===
             String referencia = "COMPRA-" + UUID.randomUUID();
             PagBankPixResponse pixResponse = pagBankClient.criarPedidoPix(cliente, total, referencia);
 
@@ -124,7 +129,6 @@ public class CompraFichaService {
             compra.setGatewayQrCodeText(pixResponse.qrCodeText());
             compra.setGatewayQrCodeImageUrl(pixResponse.qrCodeImageUrl());
 
-            // Ticket interno já gerado, mas só será aceito se statusPagamento = PAGO
             compra.setCodigoValidacao(UUID.randomUUID().toString());
             compra.setUsada(Boolean.FALSE);
             compra.setUsadaEm(null);
@@ -133,8 +137,7 @@ public class CompraFichaService {
                 || formaPagamento == PaymentMethod.CARTAO_DEBITO
                 || formaPagamento == PaymentMethod.CARTEIRA_DIGITAL) {
 
-            // === Fluxo cartão/carteira com tokenização ===
-
+            // ... (Lógica Cartão igual) ...
             if (request.paymentToken() == null || request.paymentToken().isBlank()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
@@ -150,7 +153,6 @@ public class CompraFichaService {
             );
 
             if (!cardResult.autorizado()) {
-                // 402 Payment Required indica que o pagamento não foi autorizado
                 throw new ResponseStatusException(
                         HttpStatus.PAYMENT_REQUIRED,
                         "Pagamento não autorizado pelo provedor de pagamento."
@@ -160,37 +162,30 @@ public class CompraFichaService {
             compra.setStatusPagamento(PaymentStatus.PAGO);
             compra.setGatewayProvider("PAGBANK");
             compra.setGatewayOrderId(cardResult.transactionId());
-
-            // Apenas informações não sensíveis para exibir no histórico
             compra.setCardBrand(request.cardBrand());
             compra.setCardLast4(request.cardLast4());
 
             compra.setCodigoValidacao(UUID.randomUUID().toString());
             compra.setUsada(Boolean.FALSE);
             compra.setUsadaEm(null);
-
-            // Vamos enviar e-mail após salvar a compra
             enviarEmailAposSalvar = true;
 
         } else {
-            // Fallback para outros métodos que venham a ser adicionados no futuro
+            // ... (Fallback igual) ...
             compra.setStatusPagamento(PaymentStatus.PAGO);
             compra.setCodigoValidacao(UUID.randomUUID().toString());
             compra.setUsada(Boolean.FALSE);
             compra.setUsadaEm(null);
-
             enviarEmailAposSalvar = true;
         }
 
         compra = compraFichaRepository.save(compra);
 
-        // >>> Gamificação: registra pontos pela compra <<<
-        // Para Pix, os pontos são dados apenas quando o webhook confirmar (status = PAGO).
+        // --- ALTERAÇÃO 3: Gamificação usa o total ---
         if (formaPagamento != PaymentMethod.PIX) {
-            pontuacaoService.registrarCompra(cliente, quantidade, compra.getId());
+            pontuacaoService.registrarCompra(cliente, quantidadeTotal, compra.getId());
         }
 
-        // Envia e-mail somente para compras já confirmadas (PAGO)
         if (enviarEmailAposSalvar && compra.getStatusPagamento() == PaymentStatus.PAGO) {
             emailService.enviarEmailCompraConfirmada(compra);
         }
