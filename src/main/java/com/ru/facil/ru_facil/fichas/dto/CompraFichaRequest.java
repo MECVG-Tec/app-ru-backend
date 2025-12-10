@@ -10,4 +10,15 @@ public record CompraFichaRequest(
     String paymentToken,
     String cardBrand,
     String cardLast4
-) {}
+) {
+    public CompraFichaRequest(
+        String email,
+        Integer quantidade,
+        PaymentMethod formaPagamento,
+        String paymentToken,
+        String cardBrand,
+        String cardLast4
+    ) {
+        this(email, quantidade, 0, formaPagamento, paymentToken, cardBrand, cardLast4);
+    }
+}
