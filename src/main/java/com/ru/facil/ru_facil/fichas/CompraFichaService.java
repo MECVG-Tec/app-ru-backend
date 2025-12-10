@@ -103,10 +103,20 @@ public class CompraFichaService {
             unitPrice = BigDecimal.ZERO;
         } else if (aluno) {
             priceType = TicketPriceType.ALUNO_UFRPE;
-            unitPrice = new BigDecimal("3.00");
+            BigDecimal totalAlmoco = new BigDecimal("3.50").multiply(BigDecimal.valueOf(qtdAlmoco));
+            BigDecimal totalJantar = new BigDecimal("3.00").multiply(BigDecimal.valueOf(qtdJantar));
+            
+            
+            BigDecimal totalCalculado = totalAlmoco.add(totalJantar);
+            unitPrice = totalCalculado.divide(BigDecimal.valueOf(quantidadeTotal), 2, java.math.RoundingMode.HALF_UP);
+            
         } else {
             priceType = TicketPriceType.VISITANTE;
-            unitPrice = new BigDecimal("20.00");
+            BigDecimal totalAlmoco = new BigDecimal("18.00").multiply(BigDecimal.valueOf(qtdAlmoco));
+            BigDecimal totalJantar = new BigDecimal("16.00").multiply(BigDecimal.valueOf(qtdJantar));
+            
+            BigDecimal totalCalculado = totalAlmoco.add(totalJantar);
+            unitPrice = totalCalculado.divide(BigDecimal.valueOf(quantidadeTotal), 2, java.math.RoundingMode.HALF_UP);
         }
 
         BigDecimal total = unitPrice.multiply(BigDecimal.valueOf(quantidadeTotal));
@@ -116,7 +126,7 @@ public class CompraFichaService {
         
         compra.setQuantidadeAlmoco(qtdAlmoco);
         compra.setQuantidadeJantar(qtdJantar);
-        compra.setQuantidade(quantidadeTotal); // Soma total mantida para compatibilidade
+        compra.setQuantidade(quantidadeTotal);
         
         compra.setValorUnitario(unitPrice);
         compra.setValorTotal(total);
