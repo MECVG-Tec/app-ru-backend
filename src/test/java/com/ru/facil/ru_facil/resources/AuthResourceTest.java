@@ -3,6 +3,8 @@ package com.ru.facil.ru_facil.resources;
 import com.ru.facil.ru_facil.email.EmailService;
 import com.ru.facil.ru_facil.entities.Cliente;
 import com.ru.facil.ru_facil.repositories.ClienteRepository;
+import com.ru.facil.ru_facil.resources.AuthResource.LoginRequest;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,12 +40,15 @@ class AuthResourceTest {
 
     private Cliente clienteValido;
 
+    private LoginRequest loginRequest;
+
     @BeforeEach
     void setUp() {
         clienteValido = new Cliente();
         clienteValido.setId(1L);
         clienteValido.setEmail("teste@novo.com");
         clienteValido.setSenha("senhaSegura123");
+        loginRequest = new LoginRequest("teste@novo.com", "senhaSegura123");
     }
 
     @Test
@@ -62,7 +67,7 @@ class AuthResourceTest {
 
     @Test
     void login_deveRetornarMensagemDeSucessoFixo() {
-        ResponseEntity<String> response = authResource.login();
+        ResponseEntity response = authResource.login(loginRequest);
 
         assertEquals(200, response.getStatusCodeValue(), "Deve retornar status 200 OK.");
         assertEquals("Login efetuado com sucesso!", response.getBody());
