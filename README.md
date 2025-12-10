@@ -51,15 +51,15 @@ Feito em Java, o backend expõe endpoints para gerenciamento de dados de usuári
    ```
 4. A API estará disponível por padrão em `http://localhost:8080` (ou porta configurada)
 
-> ⚠️ Dependendo da configuração do projeto, pode ser necessário configurar variáveis de ambiente, banco de dados, arquivos de configuração, etc.
+
 
 ## 📝 Endpoints e Funcionalidades
 
-*(Descrever aqui os endpoints principais expostos pela API, por exemplo — autenticação, CRUD de usuários, refeições, reservas, etc. — conforme implementado no código.)*
+
 
 ## 🧪 Testes
 
-*(Se houver testes automatizados, descrever como executá-los — por exemplo: `mvn test` — e que ferramentas são usadas.)*
+
 
 ## 🚧 Roadmap / Tarefas Futuras
 
