@@ -76,4 +76,14 @@ public class CompraFichaResource {
         compraFichaService.processarWebhookPagBank(request);
         return ResponseEntity.ok().build();
     }
+
+    @Operation(summary = "Debita 1 ficha do saldo do usuário (Simulação de passar na catraca)")
+    @PostMapping("/utilizar")
+    public ResponseEntity<Void> utilizarFicha(@RequestParam String email, @RequestParam String tipoRefeicao) {
+        boolean isAlmoco = "ALMOCO".equalsIgnoreCase(tipoRefeicao);
+
+        compraFichaService.utilizarFicha(email, isAlmoco);
+
+        return ResponseEntity.ok().build();
+    }
 }

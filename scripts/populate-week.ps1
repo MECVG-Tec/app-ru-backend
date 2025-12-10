@@ -1,13 +1,3 @@
-<# 
-Uso:
-  pwsh -File scripts/populate-week.ps1 -StartDate 2025-11-10
-Parâmetros opcionais:
-  -BaseUrl http://localhost:8080
-  -AuthPair admin:1234
-
-Obs: Edite os cardápios em $Menus abaixo.
-#>
-
 param(
   [Parameter(Mandatory=$true)][string]$StartDate,            # ex: 2025-11-10 (segunda)
   [string]$BaseUrl = 'http://localhost:8080',

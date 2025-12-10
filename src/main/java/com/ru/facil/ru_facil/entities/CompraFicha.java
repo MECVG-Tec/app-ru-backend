@@ -4,14 +4,12 @@ import com.ru.facil.ru_facil.enuns.PaymentMethod;
 import com.ru.facil.ru_facil.enuns.PaymentStatus;
 import com.ru.facil.ru_facil.enuns.TicketPriceType;
 import jakarta.persistence.*;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "tb_compra_ficha")
 public class CompraFicha {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -19,6 +17,12 @@ public class CompraFicha {
     @ManyToOne(optional = false)
     @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;
+
+    @Column(name = "qtd_almoco", nullable = false)
+    private Integer quantidadeAlmoco = 0;
+
+    @Column(name = "qtd_jantar", nullable = false)
+    private Integer quantidadeJantar = 0;
 
     @Column(nullable = false)
     private Integer quantidade;
@@ -36,8 +40,6 @@ public class CompraFicha {
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
 
-    // -------- Pagamento digital --------
-
     @Enumerated(EnumType.STRING)
     @Column(name = "forma_pagamento", nullable = false, length = 32)
     private PaymentMethod formaPagamento;
@@ -46,33 +48,42 @@ public class CompraFicha {
     @Column(name = "status_pagamento", nullable = false, length = 32)
     private PaymentStatus statusPagamento = PaymentStatus.PENDENTE;
 
-    // -------- Dados do gateway de pagamento (PagBank / Pix) --------
-
+    // ... (Mantenha gatewayProvider, orderId, qrCode, cardBrand, etc...) ...
     @Column(name = "gateway_provider", length = 32)
     private String gatewayProvider;
-
     @Column(name = "gateway_order_id", length = 64)
     private String gatewayOrderId;
-
     @Column(name = "gateway_qrcode_text", columnDefinition = "TEXT")
     private String gatewayQrCodeText;
-
     @Column(name = "gateway_qrcode_image_url")
     private String gatewayQrCodeImageUrl;
-
-
-    // -------- QR Code / valid
-
     @Column(name = "codigo_validacao", nullable = false, unique = true, length = 64)
     private String codigoValidacao;
-
     @Column(name = "usada", nullable = false)
     private Boolean usada = Boolean.FALSE;
-
     @Column(name = "usada_em")
     private LocalDateTime usadaEm;
+    @Column(name = "card_brand", length = 32)
+    private String cardBrand;
+    @Column(name = "card_last4", length = 4)
+    private String cardLast4;
 
-    public CompraFicha() {
+    // --- GETTERS E SETTERS NOVOS ---
+
+    public Integer getQuantidadeAlmoco() {
+        return quantidadeAlmoco;
+    }
+
+    public void setQuantidadeAlmoco(Integer quantidadeAlmoco) {
+        this.quantidadeAlmoco = quantidadeAlmoco;
+    }
+
+    public Integer getQuantidadeJantar() {
+        return quantidadeJantar;
+    }
+
+    public void setQuantidadeJantar(Integer quantidadeJantar) {
+        this.quantidadeJantar = quantidadeJantar;
     }
 
     public Long getId() {
@@ -179,15 +190,6 @@ public class CompraFicha {
         this.gatewayQrCodeImageUrl = gatewayQrCodeImageUrl;
     }
 
-        // -------- Metadados de cartão (não sensíveis) --------
-
-    @Column(name = "card_brand", length = 32)
-    private String cardBrand;
-
-    @Column(name = "card_last4", length = 4)
-    private String cardLast4;
-
-
     public String getCodigoValidacao() {
         return codigoValidacao;
     }
@@ -212,7 +214,7 @@ public class CompraFicha {
         this.usadaEm = usadaEm;
     }
 
-        public String getCardBrand() {
+    public String getCardBrand() {
         return cardBrand;
     }
 
@@ -227,5 +229,4 @@ public class CompraFicha {
     public void setCardLast4(String cardLast4) {
         this.cardLast4 = cardLast4;
     }
-
 }

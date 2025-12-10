@@ -31,6 +31,12 @@ public class Cliente {
      */
     private String matricula;
 
+    @Column(name = "lunch_token_balance", nullable = false)
+    private Integer lunchTokenBalance = 0;
+
+    @Column(name = "dinner_token_balance", nullable = false)
+    private Integer dinnerTokenBalance = 0;
+
     /**
      * Indica se o aluno mora na residência/moradia estudantil.
      * Usado para aplicar gratuidade nas fichas.
@@ -152,6 +158,22 @@ public class Cliente {
 
     public void setPrefereLinguagemSimples(Boolean prefereLinguagemSimples) {
         this.prefereLinguagemSimples = prefereLinguagemSimples;
+    }
+
+    public Integer getLunchTokenBalance() {
+        return lunchTokenBalance;
+    }
+
+    public void setLunchTokenBalance(Integer lunchTokenBalance) {
+        this.lunchTokenBalance = lunchTokenBalance;
+    }
+
+    public Integer getDinnerTokenBalance() {
+        return dinnerTokenBalance;
+    }
+
+    public void setDinnerTokenBalance(Integer dinnerTokenBalance) {
+        this.dinnerTokenBalance = dinnerTokenBalance;
     }
 
     public Boolean getPrefereFonteGrande() {

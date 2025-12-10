@@ -3,13 +3,17 @@ package com.ru.facil.ru_facil.fichas;
 import com.ru.facil.ru_facil.email.EmailService;
 import com.ru.facil.ru_facil.entities.Cliente;
 import com.ru.facil.ru_facil.entities.CompraFicha;
+import com.ru.facil.ru_facil.entities.TicketExtract;
 import com.ru.facil.ru_facil.enuns.PaymentMethod;
 import com.ru.facil.ru_facil.enuns.PaymentStatus;
+import com.ru.facil.ru_facil.enuns.TicketOperationType;
 import com.ru.facil.ru_facil.enuns.TicketPriceType;
 import com.ru.facil.ru_facil.fichas.dto.CompraFichaRequest;
 import com.ru.facil.ru_facil.fichas.dto.CompraFichaResponse;
+import com.ru.facil.ru_facil.fichas.dto.ExtratoResponse;
 import com.ru.facil.ru_facil.fichas.dto.PagamentoPorMetodoResumo;
 import com.ru.facil.ru_facil.fichas.dto.ResumoComprasResponse;
+import com.ru.facil.ru_facil.fichas.dto.SaldoResponse;
 import com.ru.facil.ru_facil.payments.PagBankClient;
 import com.ru.facil.ru_facil.payments.dto.CardPaymentResult;
 import com.ru.facil.ru_facil.payments.dto.PagBankPixResponse;
@@ -18,6 +22,7 @@ import com.ru.facil.ru_facil.pontuacao.PontuacaoService;
 import com.ru.facil.ru_facil.qrcode.QrCodeService;
 import com.ru.facil.ru_facil.repositories.ClienteRepository;
 import com.ru.facil.ru_facil.repositories.CompraFichaRepository;
+import com.ru.facil.ru_facil.repositories.TicketExtractRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +40,7 @@ public class CompraFichaService {
 
     private final ClienteRepository clienteRepository;
     private final CompraFichaRepository compraFichaRepository;
+    private final TicketExtractRepository ticketExtractRepository;
     private final QrCodeService qrCodeService;
     private final PontuacaoService pontuacaoService;
     private final PagBankClient pagBankClient;
@@ -42,12 +48,14 @@ public class CompraFichaService {
 
     public CompraFichaService(ClienteRepository clienteRepository,
                               CompraFichaRepository compraFichaRepository,
+                              TicketExtractRepository ticketExtractRepository,
                               QrCodeService qrCodeService,
                               PontuacaoService pontuacaoService,
                               PagBankClient pagBankClient,
                               EmailService emailService) {
         this.clienteRepository = clienteRepository;
         this.compraFichaRepository = compraFichaRepository;
+        this.ticketExtractRepository = ticketExtractRepository;
         this.qrCodeService = qrCodeService;
         this.pontuacaoService = pontuacaoService;
         this.pagBankClient = pagBankClient;
@@ -70,9 +78,12 @@ public class CompraFichaService {
                         "Cliente não encontrado para o e-mail: " + email
                 ));
 
-        int quantidade = request.quantidade();
-        if (quantidade <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantidade deve ser maior que zero");
+        int qtdAlmoco = request.quantidadeAlmoco() != null ? request.quantidadeAlmoco() : 0;
+        int qtdJantar = request.quantidadeJantar() != null ? request.quantidadeJantar() : 0;
+        int quantidadeTotal = qtdAlmoco + qtdJantar;
+
+        if (quantidadeTotal <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantidade total deve ser maior que zero (selecione almoço ou jantar)");
         }
 
         boolean aluno = Boolean.TRUE.equals(cliente.getEhAluno());
@@ -92,29 +103,41 @@ public class CompraFichaService {
             unitPrice = BigDecimal.ZERO;
         } else if (aluno) {
             priceType = TicketPriceType.ALUNO_UFRPE;
-            unitPrice = new BigDecimal("3.00");
+            BigDecimal totalAlmoco = new BigDecimal("3.50").multiply(BigDecimal.valueOf(qtdAlmoco));
+            BigDecimal totalJantar = new BigDecimal("3.00").multiply(BigDecimal.valueOf(qtdJantar));
+            
+            
+            BigDecimal totalCalculado = totalAlmoco.add(totalJantar);
+            unitPrice = totalCalculado.divide(BigDecimal.valueOf(quantidadeTotal), 2, java.math.RoundingMode.HALF_UP);
+            
         } else {
             priceType = TicketPriceType.VISITANTE;
-            unitPrice = new BigDecimal("20.00");
+            BigDecimal totalAlmoco = new BigDecimal("18.00").multiply(BigDecimal.valueOf(qtdAlmoco));
+            BigDecimal totalJantar = new BigDecimal("16.00").multiply(BigDecimal.valueOf(qtdJantar));
+            
+            BigDecimal totalCalculado = totalAlmoco.add(totalJantar);
+            unitPrice = totalCalculado.divide(BigDecimal.valueOf(quantidadeTotal), 2, java.math.RoundingMode.HALF_UP);
         }
 
-        BigDecimal total = unitPrice.multiply(BigDecimal.valueOf(quantidade));
+        BigDecimal total = unitPrice.multiply(BigDecimal.valueOf(quantidadeTotal));
 
         CompraFicha compra = new CompraFicha();
         compra.setCliente(cliente);
-        compra.setQuantidade(quantidade);
+        
+        compra.setQuantidadeAlmoco(qtdAlmoco);
+        compra.setQuantidadeJantar(qtdJantar);
+        compra.setQuantidade(quantidadeTotal);
+        
         compra.setValorUnitario(unitPrice);
         compra.setValorTotal(total);
         compra.setPriceType(priceType);
         compra.setCriadoEm(LocalDateTime.now());
         compra.setFormaPagamento(formaPagamento);
 
-        boolean enviarEmailAposSalvar = false;
+        boolean pagouAgora = false;
 
-        // --- Decisão de fluxo por forma de pagamento ---
+        // --- Lógica de Pagamento ---
         if (formaPagamento == PaymentMethod.PIX) {
-
-            // === Fluxo Pix + PagBank (pedido pendente) ===
             String referencia = "COMPRA-" + UUID.randomUUID();
             PagBankPixResponse pixResponse = pagBankClient.criarPedidoPix(cliente, total, referencia);
 
@@ -124,7 +147,6 @@ public class CompraFichaService {
             compra.setGatewayQrCodeText(pixResponse.qrCodeText());
             compra.setGatewayQrCodeImageUrl(pixResponse.qrCodeImageUrl());
 
-            // Ticket interno já gerado, mas só será aceito se statusPagamento = PAGO
             compra.setCodigoValidacao(UUID.randomUUID().toString());
             compra.setUsada(Boolean.FALSE);
             compra.setUsadaEm(null);
@@ -133,12 +155,10 @@ public class CompraFichaService {
                 || formaPagamento == PaymentMethod.CARTAO_DEBITO
                 || formaPagamento == PaymentMethod.CARTEIRA_DIGITAL) {
 
-            // === Fluxo cartão/carteira com tokenização ===
-
             if (request.paymentToken() == null || request.paymentToken().isBlank()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Token de pagamento é obrigatório para pagamentos com cartão ou carteira digital."
+                        "Token de pagamento é obrigatório para pagamentos digitais."
                 );
             }
 
@@ -150,48 +170,43 @@ public class CompraFichaService {
             );
 
             if (!cardResult.autorizado()) {
-                // 402 Payment Required indica que o pagamento não foi autorizado
                 throw new ResponseStatusException(
                         HttpStatus.PAYMENT_REQUIRED,
-                        "Pagamento não autorizado pelo provedor de pagamento."
+                        "Pagamento não autorizado pelo provedor."
                 );
             }
 
             compra.setStatusPagamento(PaymentStatus.PAGO);
             compra.setGatewayProvider("PAGBANK");
             compra.setGatewayOrderId(cardResult.transactionId());
-
-            // Apenas informações não sensíveis para exibir no histórico
             compra.setCardBrand(request.cardBrand());
             compra.setCardLast4(request.cardLast4());
 
             compra.setCodigoValidacao(UUID.randomUUID().toString());
             compra.setUsada(Boolean.FALSE);
             compra.setUsadaEm(null);
-
-            // Vamos enviar e-mail após salvar a compra
-            enviarEmailAposSalvar = true;
+            
+            pagouAgora = true;
 
         } else {
-            // Fallback para outros métodos que venham a ser adicionados no futuro
+            // Fallback
             compra.setStatusPagamento(PaymentStatus.PAGO);
             compra.setCodigoValidacao(UUID.randomUUID().toString());
             compra.setUsada(Boolean.FALSE);
             compra.setUsadaEm(null);
-
-            enviarEmailAposSalvar = true;
+            
+            pagouAgora = true;
         }
 
         compra = compraFichaRepository.save(compra);
 
-        // >>> Gamificação: registra pontos pela compra <<<
-        // Para Pix, os pontos são dados apenas quando o webhook confirmar (status = PAGO).
-        if (formaPagamento != PaymentMethod.PIX) {
-            pontuacaoService.registrarCompra(cliente, quantidade, compra.getId());
-        }
-
-        // Envia e-mail somente para compras já confirmadas (PAGO)
-        if (enviarEmailAposSalvar && compra.getStatusPagamento() == PaymentStatus.PAGO) {
+        // --- Credita fichas e Gamificação se pagou agora ---
+        if (pagouAgora) {
+            processarCreditoDeFichas(cliente, compra);
+            
+            if (formaPagamento != PaymentMethod.PIX) {
+                pontuacaoService.registrarCompra(cliente, quantidadeTotal, compra.getId());
+            }
             emailService.enviarEmailCompraConfirmada(compra);
         }
 
@@ -199,7 +214,68 @@ public class CompraFichaService {
     }
 
     // ------------------------------------------------------------------------
-    // LISTAGEM E RESUMO
+    // WEBHOOK PIX
+    // ------------------------------------------------------------------------
+
+    @Transactional
+    public void processarWebhookPagBank(PagBankWebhookSimuladoRequest request) {
+
+        if (!"PAID".equalsIgnoreCase(request.status()) &&
+            !"PAGO".equalsIgnoreCase(request.status())) {
+            return;
+        }
+
+        CompraFicha compra = compraFichaRepository.findByGatewayOrderId(request.orderId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Compra não encontrada para orderId: " + request.orderId()
+                ));
+
+        if (compra.getStatusPagamento() == PaymentStatus.PAGO) {
+            return;
+        }
+
+        compra.setStatusPagamento(PaymentStatus.PAGO);
+        compra = compraFichaRepository.save(compra);
+
+        processarCreditoDeFichas(compra.getCliente(), compra);
+
+        pontuacaoService.registrarCompra(compra.getCliente(), compra.getQuantidade(), compra.getId());
+        emailService.enviarEmailCompraConfirmada(compra);
+    }
+
+    private void processarCreditoDeFichas(Cliente cliente, CompraFicha compra) {
+        
+        int saldoAlmocoAntigo = cliente.getLunchTokenBalance() != null ? cliente.getLunchTokenBalance() : 0;
+        int saldoJantarAntigo = cliente.getDinnerTokenBalance() != null ? cliente.getDinnerTokenBalance() : 0;
+
+        int novosAlmocos = compra.getQuantidadeAlmoco();
+        int novosJantares = compra.getQuantidadeJantar();
+
+        int saldoAlmocoNovo = saldoAlmocoAntigo + novosAlmocos;
+        int saldoJantarNovo = saldoJantarAntigo + novosJantares;
+
+        cliente.setLunchTokenBalance(saldoAlmocoNovo);
+        cliente.setDinnerTokenBalance(saldoJantarNovo);
+        
+        clienteRepository.save(cliente);
+
+        TicketExtract extrato = new TicketExtract(
+                cliente,
+                TicketOperationType.COMPRA,
+                novosAlmocos,
+                novosJantares,
+                saldoAlmocoNovo,
+                saldoJantarNovo,
+                "Compra #" + compra.getId(),
+                compra
+        );
+        
+        ticketExtractRepository.save(extrato);
+    }
+
+    // ------------------------------------------------------------------------
+    // LISTAGEM E OUTROS
     // ------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
@@ -208,7 +284,7 @@ public class CompraFichaService {
         Cliente cliente = clienteRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Cliente não encontrado para o e-mail: " + email
+                        "Cliente não encontrado: " + email
                 ));
 
         return compraFichaRepository.findByClienteIdOrderByCriadoEmDesc(cliente.getId())
@@ -223,7 +299,7 @@ public class CompraFichaService {
         Cliente cliente = clienteRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Cliente não encontrado para o e-mail: " + email
+                        "Cliente não encontrado: " + email
                 ));
 
         List<CompraFicha> compras = compraFichaRepository
@@ -248,10 +324,6 @@ public class CompraFichaService {
 
         return new ResumoComprasResponse(cliente.getEmail(), porMetodo);
     }
-
-    // ------------------------------------------------------------------------
-    // QR CODE
-    // ------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
     public byte[] gerarQrCodeCompra(Long id) {
@@ -289,43 +361,101 @@ public class CompraFichaService {
         compra.setUsadaEm(LocalDateTime.now());
         compra = compraFichaRepository.save(compra);
 
+        Cliente cliente = compra.getCliente();
+
+        int saldoAlmocoAtual = cliente.getLunchTokenBalance() != null ? cliente.getLunchTokenBalance() : 0;
+        int saldoJantarAtual = cliente.getDinnerTokenBalance() != null ? cliente.getDinnerTokenBalance() : 0;
+
+        int debitoAlmoco = compra.getQuantidadeAlmoco();
+        int debitoJantar = compra.getQuantidadeJantar();
+
+        if (saldoAlmocoAtual < debitoAlmoco || saldoJantarAtual < debitoJantar) {
+            throw new ResponseStatusException(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "Saldo insuficiente para debitar esta compra."
+            );
+        }
+
+        int novoSaldoAlmoco = saldoAlmocoAtual - debitoAlmoco;
+        int novoSaldoJantar = saldoJantarAtual - debitoJantar;
+
+        cliente.setLunchTokenBalance(novoSaldoAlmoco);
+        cliente.setDinnerTokenBalance(novoSaldoJantar);
+        clienteRepository.save(cliente);
+
+        TicketExtract uso = new TicketExtract(
+            cliente,
+            TicketOperationType.CONSUMO,
+            -debitoAlmoco,
+            -debitoJantar,
+            novoSaldoAlmoco,
+            novoSaldoJantar,
+            "Uso de fichas (compra #" + compra.getId() + ")",
+            null
+        );
+
+        ticketExtractRepository.save(uso);
+
         return CompraFichaResponse.of(compra);
     }
 
-    // ------------------------------------------------------------------------
-    // WEBHOOK PIX
-    // ------------------------------------------------------------------------
+    @Transactional(readOnly = true)
+    public SaldoResponse consultarSaldo(String email) {
+        Cliente cliente = clienteRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente não encontrado"));
+
+        return new SaldoResponse(
+                cliente.getEmail(),
+                cliente.getLunchTokenBalance() != null ? cliente.getLunchTokenBalance() : 0,
+                cliente.getDinnerTokenBalance() != null ? cliente.getDinnerTokenBalance() : 0
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExtratoResponse> consultarExtrato(String email) {
+        Cliente cliente = clienteRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente não encontrado"));
+
+        List<TicketExtract> extratos = ticketExtractRepository.findByClientIdOrderByCreatedAtDesc(cliente.getId());
+
+        return extratos.stream()
+                .map(ExtratoResponse::fromEntity)
+                .toList();
+    }
 
     @Transactional
-    public void processarWebhookPagBank(PagBankWebhookSimuladoRequest request) {
+    public void utilizarFicha(String email, boolean isAlmoco) {
+        Cliente cliente = clienteRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente não encontrado"));
 
-        // Exemplo de corpo:
-        // { "orderId": "ORDE_xxx", "status": "PAID" }
-
-        if (!"PAID".equalsIgnoreCase(request.status()) &&
-            !"PAGO".equalsIgnoreCase(request.status())) {
-            // Outros status, não faz nada
-            return;
+        int saldoAtual;
+        if (isAlmoco) {
+            saldoAtual = cliente.getLunchTokenBalance();
+            if (saldoAtual <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Saldo insuficiente para Almoço.");
+            }
+            cliente.setLunchTokenBalance(saldoAtual - 1);
+        } else {
+            saldoAtual = cliente.getDinnerTokenBalance();
+            if (saldoAtual <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Saldo insuficiente para Jantar.");
+            }
+            cliente.setDinnerTokenBalance(saldoAtual - 1);
         }
 
-        CompraFicha compra = compraFichaRepository.findByGatewayOrderId(request.orderId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Compra não encontrada para orderId do PagBank: " + request.orderId()
-                ));
+        clienteRepository.save(cliente);
 
-        // Se já estiver pago, não faz nada (idempotente)
-        if (compra.getStatusPagamento() == PaymentStatus.PAGO) {
-            return;
-        }
-
-        compra.setStatusPagamento(PaymentStatus.PAGO);
-        compra = compraFichaRepository.save(compra);
-
-        // >>> Gamificação: pontos na confirmação do Pix <<<
-        pontuacaoService.registrarCompra(compra.getCliente(), compra.getQuantidade(), compra.getId());
-
-        // Envia e-mail de confirmação na confirmação do Pix
-        emailService.enviarEmailCompraConfirmada(compra);
+        TicketExtract extrato = new TicketExtract(
+                cliente,
+                TicketOperationType.CONSUMO,
+                isAlmoco ? 1 : 0,
+                isAlmoco ? 0 : 1,
+                cliente.getLunchTokenBalance(),
+                cliente.getDinnerTokenBalance(),
+                "Consumo no RU - " + (isAlmoco ? "Almoço" : "Jantar"),
+                null
+        );
+        
+        ticketExtractRepository.save(extrato);
     }
 }
